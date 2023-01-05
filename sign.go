@@ -7,7 +7,7 @@ import (
 )
 
 func signMsg(msg []byte) (signature []byte, err error) {
-	const key = "52e0b4616b25ab5aa1958d957e5b2f09757405416f15e1507368894127d4daba01cda189feb46774ca067eb118791fb98db85e5addfd84c531dde5d597e4fd68"
+	const key = "key"
 	h := hmac.New(sha512.New, []byte(key))
 
 	_, err = h.Write(msg)
