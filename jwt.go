@@ -23,11 +23,10 @@ func (c *UserClaims) Valid() error {
 	return nil
 }
 
-const jwtSignedKey = "key"
-
-func createToken(c *UserClaims) (string, error) {
+func createToken(c *UserClaims, currentKid string, currentKey *Key) (string, error) {
 	t := jwt.NewWithClaims(jwt.SigningMethodHS512, c)
-	signedToken, err := t.SignedString([]byte(jwtSignedKey))
+	t.Header["kid"] = currentKid
+	signedToken, err := t.SignedString(currentKey.key)
 	if err != nil {
 		return "", fmt.Errorf("failed to sign string: %w", err)
 	}
@@ -35,12 +34,23 @@ func createToken(c *UserClaims) (string, error) {
 	return signedToken, nil
 }
 
-func parseToken(signedToken string) (*UserClaims, error) {
-	t, err := jwt.ParseWithClaims(signedToken, &UserClaims{}, func(token *jwt.Token) (interface{}, error) {
-		if token.Method.Alg() != jwt.SigningMethodHS512.Alg() {
+func parseToken(signedToken string, keys *Keys) (*UserClaims, error) {
+	t, err := jwt.ParseWithClaims(signedToken, &UserClaims{}, func(t *jwt.Token) (interface{}, error) {
+		if t.Method.Alg() != jwt.SigningMethodHS512.Alg() {
 			return nil, fmt.Errorf("wrong signing algorithm")
 		}
-		return []byte(jwtSignedKey), nil
+
+		kid, ok := t.Header["kid"].(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid key ID")
+		}
+
+		k := keys.Key(kid)
+		if k == nil {
+			return nil, fmt.Errorf("failed to find key by key ID")
+		}
+
+		return k.key, nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse token: %w", err)
